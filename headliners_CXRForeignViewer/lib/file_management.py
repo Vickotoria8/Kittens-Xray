@@ -12,6 +12,9 @@ import shutil
 from PIL import Image
 import pydicom as dicom
 import numpy as np
+import re
+from pathlib import Path
+
 from image_processing import prepare_dicom_image, get_dicom_window_attributes
 
 def make_empties(
@@ -262,6 +265,50 @@ def copy_dicom_test(
                     convert_dcm_to_jpg(src_path, dest_path)
 
 
+def prepare_and_copy_dicom(
+        src_base_dir: str, # Папка с данными / Folder containing data
+        dest_base_dir: str # Папка, куда нужно скопировать данные / Folder to copy data
+        ) -> None:
+    
+    '''
+        Предобработать и копировать файлы
+        из исходной директории в целевую
+
+        Preprocess and copy files
+    '''
+    os.makedirs(dest_base_dir, exist_ok=True)
+
+    for root, dirs, files in os.walk(src_base_dir):
+        for file in files:
+            if file.lower().endswith('.dcm'):
+                src_path = os.path.join(root, file)
+                filename_without_ext = os.path.splitext(file)[0]
+                dest_path = os.path.join(dest_base_dir, f"{filename_without_ext}.jpg")
+                convert_dcm_to_jpg(src_path, dest_path, preproc=True)
+
+
+def copy_dicom(
+        src_base_dir: str, # Папка с данными / Folder containing data
+        dest_base_dir: str # Папка, куда нужно скопировать данные / Folder to copy data
+        ) -> None:
+    
+    '''
+        Копировать файлы
+        из исходной директории в целевую
+
+        Copy files without preprocessing
+    '''
+    os.makedirs(dest_base_dir, exist_ok=True)
+
+    for root, dirs, files in os.walk(src_base_dir):
+        for file in files:
+            if file.lower().endswith('.dcm'):
+                src_path = os.path.join(root, file)
+                filename_without_ext = os.path.splitext(file)[0]
+                dest_path = os.path.join(dest_base_dir, f"{filename_without_ext}.jpg")
+                convert_dcm_to_jpg(src_path, dest_path)
+
+
 def debug_files(
         folder_path: str # Путь к папке для проверки / Path to folder for check
         ) -> None:
@@ -309,6 +356,58 @@ def debug_files(
     print(f"Всего файлов должно быть: {pairs * 2}")
     print(f"Фактически файлов: {len(all_files)}")
 
+
+def merge_txt_files(
+        source_dir:str # Директория с выводом модели
+):
+    # Создаем директорию lib, если она не существует
+    lib_dir = Path("./merged")
+    lib_dir.mkdir(exist_ok=True)
+    
+    # Получаем список txt-файлов в текущей директории
+    files = list(Path(source_dir).glob("*.txt"))
+    
+    # Словарь для группировки файлов по базовому имени
+    file_groups = {}
+    
+    # Шаблон для поиска файлов с суффиксом (2)
+    pattern = re.compile(r"^(.*?)\s*\(\d+\)\s*$")
+    
+    for file in files:
+        stem = file.stem  # Имя файла без расширения
+        
+        # Проверяем, является ли файл версией с номером
+        match = pattern.match(stem)
+        if match:
+            base_name = match.group(1)
+        else:
+            base_name = stem
+        
+        # Добавляем файл в соответствующую группу
+        if base_name not in file_groups:
+            file_groups[base_name] = []
+        file_groups[base_name].append(file)
+    
+    # Обрабатываем группы файлов
+    for base_name, group in file_groups.items():
+        if len(group) > 1:
+            # Сортируем: оригинал первый, затем версии с номерами
+            group.sort(key=lambda x: x.stem)
+            
+            # Читаем содержимое всех файлов группы
+            content = []
+            for file in group:
+                with open(file, 'r', encoding='utf-8') as f:
+                    content.append(f.read())
+            
+            # Создаем имя результирующего файла
+            output_file = lib_dir / f"{base_name}.txt"
+            
+            # Записываем объединенное содержимое
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(content))
+            
+            # print(f"Объединен файл: {output_file}")
 
 if __name__ == "__main__":
     # Light demo with test file

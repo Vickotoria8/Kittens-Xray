@@ -1,3 +1,7 @@
+from ultralytics.models import YOLO
+
+# requirements.txt
+
 class YoloViewer:
 
     '''
@@ -27,6 +31,18 @@ class YoloViewer:
         # training logic
         # path_to_weights = path/to/weights
         # self.weights = path_to_weights
+
+        model = YOLO('yolov8s.pt')
+
+        results = model.train(
+            data='/content/drive/MyDrive/shuffle_train_invert_clean_new/dataset_task3.yaml',
+            epochs=200,
+            imgsz=640,
+            batch=8,
+            project='/content/drive/MyDrive/shuffle_train_invert_clean_new/yolo_training_results',
+            name='foreign_items_task10',
+            exist_ok=True
+        )
         pass
 
     def predict(
