@@ -12,6 +12,8 @@ from .postprocess import merge_txt_files, draw_boxes, make_binary
 class YoloViewer:
 
     '''
+        Класс модели, позволяющий легко и удобно использовать её функционал
+        
         Mapper class for convenient use of model in Python code
     '''
 
@@ -90,8 +92,10 @@ class YoloViewer:
     def predict(
             self, 
             test_data, # data for prediction
-            output_directory, # directory to save output images #TODO: set default value
         ) -> None:
+
+        global TEST_FILES_PATH
+        TEST_FILES_PATH = test_data
 
         prepare_and_copy_dicom(test_data, config.TEMP_TEST_DATA_PATH)
         copy_dicom(test_data, config.TEMP_TEST_DATA_PATH)
@@ -103,10 +107,11 @@ class YoloViewer:
             mode='predict',
             source=config.TEMP_TEST_DATA_PATH,
             conf=0.25,
-            save_txt=True
+            save_txt=True,
+            save_conf=True,
         )
 
         merge_txt_files(config.OUTPUT_LABELS_PATH)
         draw_boxes()
-        make_binary()
+        make_binary(test_data)
         cleanup_directories(['runs', config.TEMP_TEST_DATA_PATH])

@@ -67,8 +67,6 @@ def merge_txt_files(
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(content))
             
-            # print(f"Объединен файл: {output_file}")
-
 
 def draw_yolo_boxes(image_path, label_path, output_dir):
     # Создаем директорию для результатов если её нет
@@ -77,7 +75,7 @@ def draw_yolo_boxes(image_path, label_path, output_dir):
     # Загружаем изображение
     image = cv2.imread(image_path)
     if image is None:
-        # print(f"Ошибка загрузки изображения: {image_path}")
+        print(f"Ошибка загрузки изображения: {image_path}")
         return
         
     img_height, img_width = image.shape[:2]
@@ -87,7 +85,6 @@ def draw_yolo_boxes(image_path, label_path, output_dir):
         with open(label_path, 'r') as f:
             lines = f.readlines()
     except FileNotFoundError:
-        # print(f"Файл разметки не найден: {label_path}")
         output_path = os.path.join(output_dir, os.path.basename(image_path))
         cv2.imwrite(output_path, image)
         return
@@ -95,10 +92,10 @@ def draw_yolo_boxes(image_path, label_path, output_dir):
     # Обрабатываем каждую метку
     for line in lines:
         data = line.strip().split()
-        if len(data) != 5:
+        if len(data) != 6:
             continue
             
-        class_id, x_center, y_center, width, height = map(float, data)
+        class_id, x_center, y_center, width, height, _ = map(float, data)
         
         # Конвертируем нормализованные координаты в абсолютные
         x_center_abs = x_center * img_width
@@ -116,12 +113,6 @@ def draw_yolo_boxes(image_path, label_path, output_dir):
         color = (255, 0, 0)  # Синий цвет
         thickness = 5
         cv2.rectangle(image, (x1, y1), (x2, y2), color, thickness)
-        
-        # Добавляем подпись класса (опционально)
-        label = "Foreign item"
-        text_thickness = 2
-        cv2.putText(image, label, (x1, y1 - 10),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, text_thickness)
 
     # Сохраняем результат
     output_path = os.path.join(output_dir, os.path.basename(image_path))
@@ -131,7 +122,7 @@ def draw_yolo_boxes(image_path, label_path, output_dir):
 def draw_boxes():
     # Укажите пути к вашим данным
     images_dir = config.TEMP_TEST_DATA_PATH  # Папка с изображениями
-    labels_dir = config.OUTPUT_LABELS_PATH  # Папка с разметкой YOLO
+    labels_dir = config.RESULT_LABELS_PATH  # Папка с разметкой YOLO
     output_dir = config.RESULT_PATH  # Папка для результатов
     
     # Обрабатываем каждый файл
@@ -157,20 +148,26 @@ def create_file_mapping_table(images_dir: str, labels_dir: str, output_excel: st
     """
     
     # Получаем списки файлов
-    image_files = [f for f in os.listdir(images_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp', '.dcm'))]
+    # image_files = [f for f in os.listdir(images_dir) if f.lower().endswith('.dcm')]
+    image_files = []
+    for root, dirs, files in os.walk(images_dir):
+        for file in files:
+            file_lower = file.lower()
+            if file_lower.endswith(('.jpg', '.jpeg', '.png', '.bmp', '.dcm')):
+                image_files.append(file)
     label_files = [f for f in os.listdir(labels_dir) if f.lower().endswith('.txt')]
     
     # Создаем множества имен без расширений для быстрого поиска
     image_names = {os.path.splitext(f)[0] for f in image_files}
     label_names = {os.path.splitext(f)[0] for f in label_files}
-    
+
     # Создаем данные для таблицы
     data = []
     for image_name in sorted(image_names):
         has_label = 1 if image_name in label_names else 0
         data.append({
-            'file_id': image_name,
-            'has_label': has_label
+            'uid': image_name,
+            'result': has_label
         })
     
     # Создаем DataFrame
@@ -181,8 +178,10 @@ def create_file_mapping_table(images_dir: str, labels_dir: str, output_excel: st
     
 
 # Пример использования
-def make_binary():
-    images_dir = config.TEST_FILES_PATH
+def make_binary(
+        data_dir: str # Путь до файла с исходными изображениями
+):
+    print(data_dir)
     labels_dir = ''.join([config.RESULT_PATH, 'labels/'])
     
-    create_file_mapping_table(images_dir, labels_dir, 'result.xlsx')
+    create_file_mapping_table(data_dir, labels_dir, 'result.xlsx')
