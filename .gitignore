@@ -50,6 +50,7 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-# Python venv
+# Python venv and cache
 venv/
 .venv/
+__pycache__/
