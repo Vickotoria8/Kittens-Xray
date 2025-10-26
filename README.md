@@ -8,10 +8,10 @@
     1.1. [Подготовка окружения](#virtualenv) \
     1.2. [Запуск скрипта](#script) \
     1.3. [Запуск Notebook](#notebook) \
-    1.4. [Автономный запуск Notebook](#autonomous) \
+    1.4. [Автономный запуск Notebook](#autonomous) 
 
 2. [Запуск через Docker](#docker) \
-    2.1. [Foreword](#foreword)
+    2.1. [Dockerfile](#dockerfile)
 
    
 ## Как запустить программу?
