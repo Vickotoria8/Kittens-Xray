@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  cxr-viewer:
+    build: .
+    volumes:
+      - ./input_data:/app/input_data:ro
+      - ./output:/app/output
+    working_dir: /app
+    command: python main.py
