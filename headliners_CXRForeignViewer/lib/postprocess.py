@@ -88,6 +88,8 @@ def draw_yolo_boxes(image_path, label_path, output_dir):
             lines = f.readlines()
     except FileNotFoundError:
         # print(f"Файл разметки не найден: {label_path}")
+        output_path = os.path.join(output_dir, os.path.basename(image_path))
+        cv2.imwrite(output_path, image)
         return
 
     # Обрабатываем каждую метку
@@ -111,14 +113,15 @@ def draw_yolo_boxes(image_path, label_path, output_dir):
         y2 = int(y_center_abs + height_abs / 2)
         
         # Рисуем прямоугольник
-        color = (0, 255, 0)  # Зеленый цвет
-        thickness = 2
+        color = (255, 0, 0)  # Синий цвет
+        thickness = 5
         cv2.rectangle(image, (x1, y1), (x2, y2), color, thickness)
         
         # Добавляем подпись класса (опционально)
-        label = f"Class {int(class_id)}"
+        label = "Foreign item"
+        text_thickness = 2
         cv2.putText(image, label, (x1, y1 - 10),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, text_thickness)
 
     # Сохраняем результат
     output_path = os.path.join(output_dir, os.path.basename(image_path))
