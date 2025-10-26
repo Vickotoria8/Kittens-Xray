@@ -15,7 +15,7 @@ import numpy as np
 import re
 from pathlib import Path
 
-from image_processing import prepare_dicom_image, get_dicom_window_attributes
+from .image_processing import prepare_dicom_image, get_dicom_window_attributes
 
 def make_empties(
         folder_path: str # Папка с файлами в формате .jpg / Folder with .jpg files
@@ -105,6 +105,26 @@ def rename_files(
     print("Имена файлов успешно изменены.")
 
 
+def get_unique_filename(dest_path: str) -> str:
+    """
+    Генерирует уникальное имя файла, добавляя (2), (3) и т.д. при конфликтах
+    """
+    if not os.path.exists(dest_path):
+        return dest_path
+    
+    base_dir = os.path.dirname(dest_path)
+    filename = os.path.basename(dest_path)
+    name, ext = os.path.splitext(filename)
+    
+    counter = 2
+    while True:
+        new_filename = f"{name} ({counter}){ext}"
+        new_dest_path = os.path.join(base_dir, new_filename)
+        if not os.path.exists(new_dest_path):
+            return new_dest_path
+        counter += 1
+
+
 def convert_dcm_to_jpg(
         src_path: str, # Пусть к файлу dicom (.dcm) / Path to .dcm file
         dest_path: str, # Путь для сохранения файла .jpg / Path to save .jpg file
@@ -123,8 +143,8 @@ def convert_dcm_to_jpg(
         if preproc:
             image = prepare_dicom_image(src_path, method='clahe')
         else:
-            ds = dicom.dcmread(src_path)
-            image = ds.pixel_array
+            image = prepare_dicom_image(src_path)
+
         # Нормализация
         if image.dtype != np.uint8:
 
@@ -139,7 +159,6 @@ def convert_dcm_to_jpg(
 
         img = Image.fromarray(image)
         img.save(dest_path, 'JPEG')
-        print(f"Конвертировано {src_path} => {dest_path}")
     except Exception as e:
         print(f"Ошибка при обработке {src_path}: {e}")
 
@@ -276,6 +295,7 @@ def prepare_and_copy_dicom(
 
         Preprocess and copy files
     '''
+
     os.makedirs(dest_base_dir, exist_ok=True)
 
     for root, dirs, files in os.walk(src_base_dir):
@@ -284,6 +304,7 @@ def prepare_and_copy_dicom(
                 src_path = os.path.join(root, file)
                 filename_without_ext = os.path.splitext(file)[0]
                 dest_path = os.path.join(dest_base_dir, f"{filename_without_ext}.jpg")
+                dest_path = get_unique_filename(dest_path)  # Получаем уникальное имя
                 convert_dcm_to_jpg(src_path, dest_path, preproc=True)
 
 
@@ -298,6 +319,7 @@ def copy_dicom(
 
         Copy files without preprocessing
     '''
+    
     os.makedirs(dest_base_dir, exist_ok=True)
 
     for root, dirs, files in os.walk(src_base_dir):
@@ -306,6 +328,7 @@ def copy_dicom(
                 src_path = os.path.join(root, file)
                 filename_without_ext = os.path.splitext(file)[0]
                 dest_path = os.path.join(dest_base_dir, f"{filename_without_ext}.jpg")
+                dest_path = get_unique_filename(dest_path)  # Получаем уникальное имя
                 convert_dcm_to_jpg(src_path, dest_path)
 
 
@@ -357,57 +380,20 @@ def debug_files(
     print(f"Фактически файлов: {len(all_files)}")
 
 
-def merge_txt_files(
-        source_dir:str # Директория с выводом модели
-):
-    # Создаем директорию lib, если она не существует
-    lib_dir = Path("./merged")
-    lib_dir.mkdir(exist_ok=True)
+def cleanup_directories(directories: list) -> None:
+    """
+    Удаляет список временных директорий
     
-    # Получаем список txt-файлов в текущей директории
-    files = list(Path(source_dir).glob("*.txt"))
-    
-    # Словарь для группировки файлов по базовому имени
-    file_groups = {}
-    
-    # Шаблон для поиска файлов с суффиксом (2)
-    pattern = re.compile(r"^(.*?)\s*\(\d+\)\s*$")
-    
-    for file in files:
-        stem = file.stem  # Имя файла без расширения
-        
-        # Проверяем, является ли файл версией с номером
-        match = pattern.match(stem)
-        if match:
-            base_name = match.group(1)
+    """
+    for dir_path in directories:
+        if os.path.exists(dir_path):
+            try:
+                shutil.rmtree(dir_path)
+            except Exception as e:
+                print(f"❌ Ошибка при удалении {dir_path}: {e}")
         else:
-            base_name = stem
-        
-        # Добавляем файл в соответствующую группу
-        if base_name not in file_groups:
-            file_groups[base_name] = []
-        file_groups[base_name].append(file)
-    
-    # Обрабатываем группы файлов
-    for base_name, group in file_groups.items():
-        if len(group) > 1:
-            # Сортируем: оригинал первый, затем версии с номерами
-            group.sort(key=lambda x: x.stem)
-            
-            # Читаем содержимое всех файлов группы
-            content = []
-            for file in group:
-                with open(file, 'r', encoding='utf-8') as f:
-                    content.append(f.read())
-            
-            # Создаем имя результирующего файла
-            output_file = lib_dir / f"{base_name}.txt"
-            
-            # Записываем объединенное содержимое
-            with open(output_file, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(content))
-            
-            # print(f"Объединен файл: {output_file}")
+            print(f"ℹ️ Директория не существует: {dir_path}")
+
 
 if __name__ == "__main__":
     # Light demo with test file

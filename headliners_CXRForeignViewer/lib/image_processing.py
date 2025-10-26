@@ -1,4 +1,7 @@
 '''
+    Методы, использованные для предобработки данных
+    перед запуском модели в train или predict моде
+
     Methods used to preprocess images before
     starting the model in train or predict mode
 '''
@@ -12,7 +15,7 @@ from pathlib import Path
 import numpy as np
 import torchxrayvision as xrv
 
-from augmentation import clahe_window, dcp_window, combined_window
+from .augmentation import clahe_window, dcp_window, combined_window
 
 def show_pic_with_cv2(
         dcm_sample_image: np.ndarray, # Изображение / Image

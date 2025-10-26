@@ -1,6 +1,13 @@
-from ultralytics.models import YOLO
+import os
+import random
+import shutil
+from tqdm.notebook import tqdm
 
-# requirements.txt
+from ultralytics.models import YOLO
+from .. import config
+
+from .file_management import prepare_and_copy_dicom, copy_dicom, cleanup_directories
+from .postprocess import merge_txt_files, draw_boxes, make_binary
 
 class YoloViewer:
 
@@ -10,47 +17,96 @@ class YoloViewer:
 
     def __init__(
             self, 
-            trained = False, # if pretrained model is used
-            calculated_weights = None # weights fore model
+            trained = True, # if pretrained model is used
+            model_path: str = config.MODEL_PATH # weights fore model
             ):
 
         self.trained = trained
-        if self.trained:
-            self.weights = 'path/to/our/weights'
-        else:
-            self.weights = calculated_weights
+        self.model_path = model_path
+        
         # Metrics
+
+    def _train_test_split(self, path, neg_path=None, split=0.2):
+        print("------ PROCESS STARTED -------")
+
+        files = list(set([name[:-4] for name in os.listdir(path)]))
+        random.seed(42)
+        random.shuffle(files)
+
+        test_size = int(len(files) * split)
+
+        # РАЗДЕЛЕНИЕ на непересекающиеся части
+        train_files = files[:-test_size]  # 80% для тренировки
+        val_files = files[-test_size:]    # 20% для валидации
+
+        # Создание директорий
+        os.makedirs(config.train_path_img, exist_ok=True)
+        os.makedirs(config.train_path_label, exist_ok=True)
+        os.makedirs(config.val_path_img, exist_ok=True)
+        os.makedirs(config.val_path_label, exist_ok=True)
+
+        # Копирование ТОЛЬКО тренировочных данных
+        for filex in tqdm(train_files):
+            if filex == 'classes':
+                continue
+            shutil.copy2(path + filex + '.jpg', f"{config.train_path_img}/" + filex + '.jpg')
+            shutil.copy2(path + filex + '.txt', f"{config.train_path_label}/" + filex + '.txt')
+
+        print(f"------ Training data created with {len(train_files)} images -------")
+
+        # Копирование ТОЛЬКО валидационных данных
+        for filex in tqdm(val_files):
+            if filex == 'classes':
+                continue
+            shutil.copy2(path + filex + '.jpg', f"{config.val_path_img}/" + filex + '.jpg')
+            shutil.copy2(path + filex + '.txt', f"{config.val_path_label}/" + filex + '.txt')
+
+        print(f"------ Validation data created with {len(val_files)} images ----------")
+        print("------ TASK COMPLETED -------")
 
     def train(
             self, 
-            train_data, # data for training
-            model_directory, # directory for model weights and params #TODO: set default value
-            **kwargs # Model parameters
+            project_name: str=config.PROJECT, # directory for model weights and params #TODO: set default value
+            model_name: str=config.MODEL_NAME,
+            path_to_yaml=config.PATH_TO_YAML,
             ) -> None:
         
-        # training logic
-        # path_to_weights = path/to/weights
-        # self.weights = path_to_weights
+        self._train_test_split(config.TRAIN_FILES_PATH)
 
         model = YOLO('yolov8s.pt')
 
         results = model.train(
-            data='/content/drive/MyDrive/shuffle_train_invert_clean_new/dataset_task3.yaml',
+            data=path_to_yaml,
             epochs=200,
             imgsz=640,
             batch=8,
-            project='/content/drive/MyDrive/shuffle_train_invert_clean_new/yolo_training_results',
-            name='foreign_items_task10',
-            exist_ok=True
+            project=project_name,
+            name=model_name,
+            exist_ok=True,
         )
-        pass
+
+        self.model_path = 'my_model/model_data/weights/best.onnx'
 
     def predict(
             self, 
             test_data, # data for prediction
             output_directory, # directory to save output images #TODO: set default value
-            **kwargs # Model parameters
         ) -> None:
 
-        # prediction logic using class's weights
-        pass
+        prepare_and_copy_dicom(test_data, config.TEMP_TEST_DATA_PATH)
+        copy_dicom(test_data, config.TEMP_TEST_DATA_PATH)
+
+        model = YOLO(self.model_path)
+
+        results = model.predict(
+            task='detect',
+            mode='predict',
+            source=config.TEMP_TEST_DATA_PATH,
+            conf=0.25,
+            save_txt=True
+        )
+
+        merge_txt_files(config.OUTPUT_LABELS_PATH)
+        draw_boxes()
+        make_binary()
+        cleanup_directories(['runs', config.TEMP_TEST_DATA_PATH])
