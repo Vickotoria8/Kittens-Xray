@@ -99,4 +99,4 @@
 1. Бинарный файл классификации `result.xlsx`, в котором 1 соответствует наличию инородного тела, 0 - его отсутствию
 2. Папка с визуализацией результатов `result`
 
-![2](misc/images/example_3.jpg)![3](misc/images/example_1.jpg)![4](misc/images/example_2.jpg)
+![2](misc/images/example_3.jpg)![3](misc/images/example_1.jpg)![4](misc/images/example_2.jpg)![5](misc/images/example_4.jpg)
